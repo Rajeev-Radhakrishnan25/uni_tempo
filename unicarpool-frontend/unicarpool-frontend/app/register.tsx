@@ -2,15 +2,21 @@ import React, { useState } from 'react';
 import {
   View,
   TextInput,
-  Button,
   Text,
   StyleSheet,
   TouchableOpacity,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
   Alert,
+  SafeAreaView,
 } from 'react-native';
 import axios from 'axios';
 import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
+
+const API_BASE_URL = 'http://localhost:8080/api/v1';
 
 export default function RegisterScreen() {
   const [bannerId, setBannerId] = useState('');
@@ -19,9 +25,10 @@ export default function RegisterScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'RIDER' | 'DRIVER'>('RIDER');
-
+  const [verificationCode, setVerificationCode] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [step, setStep] = useState(1);
 
   const router = useRouter();
 
@@ -30,7 +37,6 @@ export default function RegisterScreen() {
       return 'All fields are required.';
     }
 
-    // @dal.ca email check
     const lowered = schoolEmail.trim().toLowerCase();
     if (!lowered.endsWith('@dal.ca')) {
       return 'Please use your @dal.ca email.';
@@ -38,6 +44,10 @@ export default function RegisterScreen() {
 
     if (phoneNumber.length < 7) {
       return 'Please enter a valid phone number.';
+    }
+
+    if (password.length < 8) {
+      return 'Password must be at least 8 characters long.';
     }
 
     return null;
@@ -54,7 +64,7 @@ export default function RegisterScreen() {
     try {
       setSubmitting(true);
 
-      const response = await axios.post('http://localhost:8080/api/v1/user/register', {
+      const response = await axios.post(`${API_BASE_URL}/user/register`, {
         banner_id: bannerId,
         full_name: fullName,
         school_email: schoolEmail.trim().toLowerCase(),
@@ -64,19 +74,8 @@ export default function RegisterScreen() {
       });
 
       console.log('Register response:', response.data);
-
-      Alert.alert(
-        'Success',
-        'Account created. Please log in.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              router.replace('/login');
-            },
-          },
-        ]
-      );
+      setStep(2);
+      await sendVerificationCode();
     } catch (error: any) {
       console.log('Registration error:', error?.response?.data || error.message);
 
@@ -91,122 +90,392 @@ export default function RegisterScreen() {
     }
   };
 
+  const sendVerificationCode = async () => {
+    try {
+      await axios.post(`${API_BASE_URL}/auth/verification-code`, {
+        banner_id: bannerId,
+      });
+
+      Alert.alert(
+        'Verification Code Sent',
+        'A verification code has been sent to your email. Please check your inbox.',
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      const backendMsg =
+        error.response?.data?.message || 'Failed to send verification code.';
+      setMessage(backendMsg);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!verificationCode.trim()) {
+      setMessage('Please enter the verification code');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setMessage('');
+
+      await axios.post(`${API_BASE_URL}/auth/verify-code`, {
+        banner_id: bannerId,
+        verification_code: verificationCode,
+      });
+
+      Alert.alert(
+        'Success! 🎉',
+        'Your account has been verified. Please log in.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              router.replace('/login');
+            },
+          },
+        ]
+      );
+    } catch (error: any) {
+      const backendMsg =
+        error.response?.data?.message || 'Verification failed.';
+      setMessage(backendMsg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const resendCode = async () => {
+    setMessage('');
+    try {
+      await sendVerificationCode();
+    } catch (error) {
+      setMessage('Failed to resend code');
+    }
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Create your account</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        {step === 2 && (
+          <View style={styles.topNav}>
+            <TouchableOpacity
+              onPress={() => setStep(1)}
+              style={styles.backButtonTop}
+              disabled={submitting}
+            >
+              <Text style={styles.backArrow}>←</Text>
+              <Text style={styles.backText}>Back</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-      <TextInput
-        placeholder="Banner ID"
-        value={bannerId}
-        onChangeText={setBannerId}
-        style={styles.input}
-        autoCapitalize="none"
-      />
-
-      <TextInput
-        placeholder="Full name"
-        value={fullName}
-        onChangeText={setFullName}
-        style={styles.input}
-      />
-
-      <TextInput
-        placeholder="University email (@dal.ca)"
-        value={schoolEmail}
-        onChangeText={setSchoolEmail}
-        style={styles.input}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
-
-      <TextInput
-        placeholder="Phone number"
-        value={phoneNumber}
-        onChangeText={setPhoneNumber}
-        style={styles.input}
-        keyboardType="phone-pad"
-      />
-
-      <TextInput
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        style={styles.input}
-        secureTextEntry
-      />
-
-      <Text style={styles.label}>Role</Text>
-      <View style={styles.pickerWrapper}>
-        <Picker
-          selectedValue={role}
-          onValueChange={(val) => setRole(val)}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Picker.Item label="RIDER" value="RIDER" />
-          <Picker.Item label="DRIVER" value="DRIVER" />
-        </Picker>
-      </View>
+          <View style={styles.centerWrapper}>
+            <View style={styles.header}>
+              <Text style={styles.emoji}>{step === 1 ? '🚀' : '📧'}</Text>
+              <Text style={styles.title}>
+                {step === 1 ? 'Create Account' : 'Verify Email'}
+              </Text>
+              <Text style={styles.subtitle}>
+                {step === 1
+                  ? 'Join UNICARPOOL today'
+                  : 'Enter the code sent to your email'}
+              </Text>
+            </View>
 
-      {!!message && <Text style={styles.message}>{message}</Text>}
+            {step === 1 && (
+              <View style={styles.form}>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Banner ID</Text>
+                  <TextInput
+                    placeholder="e.g., B00123456"
+                    value={bannerId}
+                    onChangeText={setBannerId}
+                    style={styles.input}
+                    autoCapitalize="none"
+                    editable={!submitting}
+                  />
+                </View>
 
-      <Button
-        title={submitting ? 'Registering...' : 'Register'}
-        onPress={handleRegister}
-        disabled={submitting}
-      />
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Full Name</Text>
+                  <TextInput
+                    placeholder="Enter your full name"
+                    value={fullName}
+                    onChangeText={setFullName}
+                    style={styles.input}
+                    editable={!submitting}
+                  />
+                </View>
 
-      <TouchableOpacity onPress={() => router.push('/ResetPassword')}>
-        <Text style={styles.linkText}>Forgot Password? Reset Here!</Text>
-      </TouchableOpacity>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>University Email</Text>
+                  <TextInput
+                    placeholder="yourname@dal.ca"
+                    value={schoolEmail}
+                    onChangeText={setSchoolEmail}
+                    style={styles.input}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    editable={!submitting}
+                  />
+                </View>
 
-      <TouchableOpacity onPress={() => router.replace('/login')}>
-        <Text style={[styles.linkText, { marginTop: 8 }]}>
-          Already have an account? Log in
-        </Text>
-      </TouchableOpacity>
-    </View>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Phone Number</Text>
+                  <TextInput
+                    placeholder="e.g., +1 234 567 8900"
+                    value={phoneNumber}
+                    onChangeText={setPhoneNumber}
+                    style={styles.input}
+                    keyboardType="phone-pad"
+                    editable={!submitting}
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Password</Text>
+                  <TextInput
+                    placeholder="At least 8 characters"
+                    value={password}
+                    onChangeText={setPassword}
+                    style={styles.input}
+                    secureTextEntry
+                    editable={!submitting}
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>I want to</Text>
+                  <View style={styles.pickerWrapper}>
+                    <Picker
+                      selectedValue={role}
+                      onValueChange={(val) => setRole(val)}
+                      enabled={!submitting}
+                      style={styles.picker}
+                    >
+                      <Picker.Item label="🚗 Offer Rides (Driver)" value="DRIVER" />
+                      <Picker.Item label="🎒 Find Rides (Rider)" value="RIDER" />
+                    </Picker>
+                  </View>
+                </View>
+
+                {!!message && <Text style={styles.errorText}>{message}</Text>}
+
+                <TouchableOpacity
+                  style={[styles.button, submitting && styles.buttonDisabled]}
+                  onPress={handleRegister}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text style={styles.buttonText}>Create Account</Text>
+                  )}
+                </TouchableOpacity>
+
+                <View style={styles.signinContainer}>
+                  <Text style={styles.signinText}>Already have an account? </Text>
+                  <TouchableOpacity onPress={() => router.replace('/login')}>
+                    <Text style={styles.signinLink}>Sign In</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {step === 2 && (
+              <View style={styles.form}>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Verification Code</Text>
+                  <TextInput
+                    placeholder="Enter 6-digit code"
+                    value={verificationCode}
+                    onChangeText={setVerificationCode}
+                    style={styles.input}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    editable={!submitting}
+                  />
+                </View>
+
+                {!!message && <Text style={styles.errorText}>{message}</Text>}
+
+                <TouchableOpacity
+                  style={[styles.button, submitting && styles.buttonDisabled]}
+                  onPress={handleVerifyCode}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text style={styles.buttonText}>Verify Email</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={resendCode}
+                  style={styles.resendButton}
+                  disabled={submitting}
+                >
+                  <Text style={styles.resendText}>Resend Code</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
-// styling
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+  },
   container: {
     flex: 1,
-    backgroundColor: 'white',
-    padding: 24,
-    paddingTop: 64,
+    backgroundColor: '#F8F9FA',
   },
-  header: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 24,
+  topNav: {
+    paddingHorizontal: 8,
+    paddingVertical: 16,
+    backgroundColor: '#F8F9FA',
+    alignItems: 'flex-start',
   },
-  input: {
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#999',
-    borderRadius: 6,
-    padding: 12,
+  backButtonTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 0,
+    marginLeft: 0,
   },
-  label: {
-    marginTop: 8,
-    marginBottom: 4,
-    fontWeight: '500',
+  backArrow: {
+    fontSize: 24,
+    color: '#0A84FF',
+    marginRight: 4,
   },
-  pickerWrapper: {
-    borderWidth: 1,
-    borderColor: '#999',
-    borderRadius: 6,
-    marginBottom: 20,
-    overflow: 'hidden',
-  },
-  message: {
-    color: 'red',
-    marginBottom: 12,
-  },
-  linkText: {
-    marginTop: 20,
+  backText: {
+    fontSize: 17,
     color: '#0A84FF',
     fontWeight: '500',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 40,
+    paddingBottom: 24,
+  },
+  centerWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  emoji: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#1A1A1A',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
     textAlign: 'center',
+  },
+  form: {
+    marginBottom: 32,
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    fontSize: 16,
+    color: '#1A1A1A',
+  },
+  pickerWrapper: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  picker: {
+    height: 50,
+  },
+  button: {
+    backgroundColor: '#0A84FF',
+    borderRadius: 12,
+    padding: 18,
+    alignItems: 'center',
+    marginTop: 8,
+    shadowColor: '#0A84FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  buttonDisabled: {
+    backgroundColor: '#A0C4FF',
+    shadowOpacity: 0.1,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  errorText: {
+    color: '#FF3B30',
+    fontSize: 14,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  signinContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  signinText: {
+    fontSize: 15,
+    color: '#666',
+  },
+  signinLink: {
+    fontSize: 15,
+    color: '#0A84FF',
+    fontWeight: '600',
+  },
+  resendButton: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  resendText: {
+    color: '#0A84FF',
+    fontSize: 15,
+    fontWeight: '500',
   },
 });
