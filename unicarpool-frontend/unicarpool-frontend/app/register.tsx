@@ -25,12 +25,15 @@ export default function RegisterScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'RIDER' | 'DRIVER'>('RIDER');
-  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState(1);
 
   const router = useRouter();
+
+  // Refs for verification code inputs
+  const inputRefs = React.useRef<(TextInput | null)[]>(Array(6).fill(null));
 
   const validate = () => {
     if (!bannerId || !fullName || !schoolEmail || !phoneNumber || !password) {
@@ -108,9 +111,47 @@ export default function RegisterScreen() {
     }
   };
 
+  const handleCodeChange = (text: string, index: number) => {
+    const newCode = [...verificationCode];
+    
+    // Handle paste
+    if (text.length > 1) {
+      const pastedCode = text.slice(0, 6).split('');
+      pastedCode.forEach((char, i) => {
+        if (i < 6 && /^\d$/.test(char)) {
+          newCode[i] = char;
+        }
+      });
+      setVerificationCode(newCode);
+      
+      // Focus on the last filled input or the next empty one
+      const nextIndex = Math.min(pastedCode.length, 5);
+      inputRefs.current[nextIndex]?.focus();
+      return;
+    }
+
+    // Handle single character input
+    if (/^\d$/.test(text) || text === '') {
+      newCode[index] = text;
+      setVerificationCode(newCode);
+
+      // Auto-focus next input
+      if (text && index < 5) {
+        inputRefs.current[index + 1]?.focus();
+      }
+    }
+  };
+
+  const handleKeyPress = (e: any, index: number) => {
+    if (e.nativeEvent.key === 'Backspace' && !verificationCode[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
   const handleVerifyCode = async () => {
-    if (!verificationCode.trim()) {
-      setMessage('Please enter the verification code');
+    const code = verificationCode.join('');
+    if (code.length !== 6) {
+      setMessage('Please enter all 6 digits');
       return;
     }
 
@@ -120,7 +161,7 @@ export default function RegisterScreen() {
 
       await axios.post(`${API_BASE_URL}/auth/verify-code`, {
         banner_id: bannerId,
-        verification_code: verificationCode,
+        verification_code: code,
       });
 
       Alert.alert(
@@ -186,7 +227,7 @@ export default function RegisterScreen() {
               <Text style={styles.subtitle}>
                 {step === 1
                   ? 'Join UNICARPOOL today'
-                  : 'Enter the code sent to your email'}
+                  : `Enter the 6-digit code sent to\n${schoolEmail}`}
               </Text>
             </View>
 
@@ -277,7 +318,7 @@ export default function RegisterScreen() {
                   {submitting ? (
                     <ActivityIndicator color="white" />
                   ) : (
-                    <Text style={styles.buttonText}>Create Account</Text>
+                    <Text style={styles.buttonText}>Continue</Text>
                   )}
                 </TouchableOpacity>
 
@@ -292,18 +333,31 @@ export default function RegisterScreen() {
 
             {step === 2 && (
               <View style={styles.form}>
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Verification Code</Text>
-                  <TextInput
-                    placeholder="Enter 6-digit code"
-                    value={verificationCode}
-                    onChangeText={setVerificationCode}
-                    style={styles.input}
-                    keyboardType="number-pad"
-                    maxLength={6}
-                    editable={!submitting}
-                  />
+                <View style={styles.codeInputContainer}>
+                  {verificationCode.map((digit, index) => (
+                    <TextInput
+                      key={index}
+                      ref={(ref) => {
+                        inputRefs.current[index] = ref;
+                      }}
+                      style={[
+                        styles.codeInput,
+                        digit !== '' ? styles.codeInputFilled : null,
+                      ]}
+                      value={digit}
+                      onChangeText={(text) => handleCodeChange(text, index)}
+                      onKeyPress={(e) => handleKeyPress(e, index)}
+                      keyboardType="number-pad"
+                      maxLength={1}
+                      selectTextOnFocus
+                      editable={!submitting}
+                    />
+                  ))}
                 </View>
+
+                <Text style={styles.codeHint}>
+                  Didn't receive the code? Check your spam folder
+                </Text>
 
                 {!!message && <Text style={styles.errorText}>{message}</Text>}
 
@@ -394,6 +448,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
+    lineHeight: 22,
   },
   form: {
     marginBottom: 32,
@@ -426,6 +481,35 @@ const styles = StyleSheet.create({
   },
   picker: {
     height: 50,
+  },
+  codeInputContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+    paddingHorizontal: 4,
+  },
+  codeInput: {
+    width: 48,
+    height: 58,
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
+    borderRadius: 12,
+    fontSize: 24,
+    fontWeight: '700',
+    textAlign: 'center',
+    color: '#1A1A1A',
+  },
+  codeInputFilled: {
+    borderColor: '#0A84FF',
+    backgroundColor: '#F0F8FF',
+  },
+  codeHint: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
   },
   button: {
     backgroundColor: '#0A84FF',
