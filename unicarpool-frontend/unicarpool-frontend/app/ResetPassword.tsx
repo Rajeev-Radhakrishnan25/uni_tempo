@@ -1,45 +1,404 @@
 import React, { useState } from 'react';
-import { View, TextInput, Button, Text } from 'react-native';
+import {
+  View,
+  TextInput,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+} from 'react-native';
 import axios from 'axios';
+import { useRouter } from 'expo-router';
 
+const API_BASE_URL = 'http://localhost:8080/api/v1';
 
 export default function ResetPasswordScreen() {
-    const[banner_Id, setBannerId] = useState('');
-    const[password, setPassword] = useState('');
-    const[confirmPassword, setConfirmPassword] = useState('');
-    const[message, setMessage] = useState('');
+  const [bannerId, setBannerId] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState(1);
 
+  const router = useRouter();
 
-    const handleResetPassword = async () => {
+  const handleRequestCode = async () => {
+    if (!bannerId.trim()) {
+      setMessage('Please enter your Banner ID');
+      return;
+    }
 
-        if(password.length < 8) {
-            setMessage('Error: Password must be at least 8 characters long.');
-            return;
+    try {
+      setLoading(true);
+      setMessage('');
+
+      const response = await axios.post(
+        `${API_BASE_URL}/auth/recover-password-code`,
+        {
+          banner_id: bannerId,
         }
-        if (password !== confirmPassword) {
-            setMessage('Error: Passwords do not match.');
-            return;
-        }
-        try {
-            const response = await axios.post('http://localhost:8080/api/v1/user/reset-password', {
-                banner_Id: banner_Id,
-                password: password,
-            });
-            setMessage('Password reset successful!');
-        } catch (error : any) {
-            setMessage('Error: Could not reset password.');
-            setMessage(error.response?.data?.message + "\n" || error.message);
-        }
-    };
+      );
 
-    return (
-        <View style={{flex: 1, backgroundColor : 'white', padding: 20 }}>
-            <TextInput placeholder="banner_Id" onChangeText={setBannerId} style={{ marginBottom: 10, borderWidth: 1, padding: 10 }} />
-            <TextInput placeholder="New Password" secureTextEntry onChangeText={setPassword} style={{ marginBottom: 10, borderWidth: 1, padding: 10 }} />
-            <TextInput placeholder="Confirm Password" secureTextEntry onChangeText={setConfirmPassword} style={{ marginBottom: 10, borderWidth: 1, padding: 10 }} />
-            <Button title="Reset Password" onPress={handleResetPassword} />
-            {message ? <Text style={{ marginTop: 20 }}>{message}</Text> : null}
-        </View>
+      Alert.alert(
+        'Success!',
+        'A verification code has been sent to your registered email.',
+        [{ text: 'OK', onPress: () => setStep(2) }]
+      );
+    } catch (error: any) {
+      const errorMsg =
+        error.response?.data?.message || 'Failed to send verification code.';
+      setMessage(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    );
+  const handleResetPassword = async () => {
+    setMessage('');
+
+    if (!verificationCode.trim()) {
+      setMessage('Please enter the verification code');
+      return;
+    }
+
+    if (password.length < 8) {
+      setMessage('Password must be at least 8 characters long');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setMessage('Passwords do not match');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await axios.post(
+        `${API_BASE_URL}/auth/recover-password`,
+        {
+          banner_id: bannerId,
+          verification_code: verificationCode,
+          password: password,
+        }
+      );
+
+      Alert.alert(
+        'Success!',
+        'Your password has been reset successfully. Please login with your new password.',
+        [
+          {
+            text: 'Go to Login',
+            onPress: () => router.replace('/login'),
+          },
+        ]
+      );
+    } catch (error: any) {
+      const errorMsg =
+        error.response?.data?.message || 'Failed to reset password.';
+      setMessage(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resendCode = async () => {
+    setMessage('');
+    try {
+      setLoading(true);
+      await axios.post(`${API_BASE_URL}/auth/recover-password-code`, {
+        banner_id: bannerId,
+      });
+      Alert.alert('Success', 'Verification code has been resent to your email');
+    } catch (error: any) {
+      setMessage(error.response?.data?.message || 'Failed to resend code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        {step === 2 && (
+          <View style={styles.topNav}>
+            <TouchableOpacity
+              onPress={() => setStep(1)}
+              style={styles.backButtonTop}
+              disabled={loading}
+            >
+              <Text style={styles.backArrow}>←</Text>
+              <Text style={styles.backText}>Back</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.centerWrapper}>
+            <View style={styles.header}>
+              <Text style={styles.emoji}>🔐</Text>
+              <Text style={styles.title}>
+                {step === 1 ? 'Forgot Password?' : 'Reset Password'}
+              </Text>
+              <Text style={styles.subtitle}>
+                {step === 1
+                  ? "No worries! Enter your Banner ID and we'll send you a verification code."
+                  : 'Enter the code sent to your email and create a new password.'}
+              </Text>
+            </View>
+
+            {step === 1 && (
+              <View style={styles.form}>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Banner ID</Text>
+                  <TextInput
+                    placeholder="e.g., B00123456"
+                    value={bannerId}
+                    onChangeText={setBannerId}
+                    style={styles.input}
+                    autoCapitalize="none"
+                    editable={!loading}
+                  />
+                </View>
+
+                {message ? <Text style={styles.errorText}>{message}</Text> : null}
+
+                <TouchableOpacity
+                  style={[styles.button, loading && styles.buttonDisabled]}
+                  onPress={handleRequestCode}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text style={styles.buttonText}>Send Verification Code</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {step === 2 && (
+              <View style={styles.form}>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Verification Code</Text>
+                  <TextInput
+                    placeholder="Enter 6-digit code"
+                    value={verificationCode}
+                    onChangeText={setVerificationCode}
+                    style={styles.input}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    editable={!loading}
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>New Password</Text>
+                  <TextInput
+                    placeholder="At least 8 characters"
+                    value={password}
+                    onChangeText={setPassword}
+                    style={styles.input}
+                    secureTextEntry
+                    editable={!loading}
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Confirm New Password</Text>
+                  <TextInput
+                    placeholder="Re-enter your password"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    style={styles.input}
+                    secureTextEntry
+                    editable={!loading}
+                  />
+                </View>
+
+                {message ? <Text style={styles.errorText}>{message}</Text> : null}
+
+                <TouchableOpacity
+                  style={[styles.button, loading && styles.buttonDisabled]}
+                  onPress={handleResetPassword}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text style={styles.buttonText}>Reset Password</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={resendCode}
+                  style={styles.resendButton}
+                  disabled={loading}
+                >
+                  <Text style={styles.resendText}>Resend Code</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Remember your password?</Text>
+              <TouchableOpacity onPress={() => router.push('/login')}>
+                <Text style={styles.linkText}>Back to Login</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+  },
+  topNav: {
+    paddingHorizontal: 8,
+    paddingVertical: 16,
+    backgroundColor: '#F8F9FA',
+    alignItems: 'flex-start',
+  },
+  backButtonTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 0,
+    marginLeft: 0,
+  },
+  backArrow: {
+    fontSize: 24,
+    color: '#0A84FF',
+    marginRight: 4,
+  },
+  backText: {
+    fontSize: 17,
+    color: '#0A84FF',
+    fontWeight: '500',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 40,
+    paddingBottom: 24,
+  },
+  centerWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 48,
+    marginTop: 20,
+  },
+  emoji: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#1A1A1A',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 22,
+    paddingHorizontal: 20,
+  },
+  form: {
+    marginBottom: 32,
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    fontSize: 16,
+    color: '#1A1A1A',
+  },
+  button: {
+    backgroundColor: '#0A84FF',
+    borderRadius: 12,
+    padding: 18,
+    alignItems: 'center',
+    marginTop: 8,
+    shadowColor: '#0A84FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  buttonDisabled: {
+    backgroundColor: '#A0C4FF',
+    shadowOpacity: 0.1,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  errorText: {
+    color: '#FF3B30',
+    fontSize: 14,
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  resendButton: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  resendText: {
+    color: '#0A84FF',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  footer: {
+    alignItems: 'center',
+    paddingTop: 40,
+    paddingBottom: 20,
+  },
+  footerText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  linkText: {
+    color: '#0A84FF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
