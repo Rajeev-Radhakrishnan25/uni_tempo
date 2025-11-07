@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   TextInput,
@@ -12,7 +12,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import axios from 'axios';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 
 const API_BASE_URL = 'http://localhost:8080/api/v1';
 
@@ -23,6 +23,16 @@ export default function LoginScreen() {
   const [loggingIn, setLoggingIn] = useState(false);
 
   const router = useRouter();
+  const navigation = useNavigation();
+
+  // Force hide header when component mounts
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+      title: '',
+      headerTitle: '',
+    });
+  }, [navigation]);
 
   const validate = () => {
     if (!bannerId || !password) {
@@ -73,6 +83,7 @@ export default function LoginScreen() {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           <View style={styles.centerWrapper}>
             <View style={styles.header}>

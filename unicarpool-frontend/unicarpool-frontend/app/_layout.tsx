@@ -8,41 +8,26 @@ export default function RootLayout() {
 
   return (
     <>
-      <Stack>
-        {/* Splash screen */}
-        <Stack.Screen
-          name="index"
-          options={{ headerShown: false }}
-        />
-
-        {/* Login screen */}
-        <Stack.Screen
-          name="Login"
-          options={{ headerShown: false }}
-        />
-
-        {/* Register screen */}
-        <Stack.Screen
-          name="Register"
-          options={{ headerShown: false }}
-        />
-
-        {/* Reset password screen */}
-        <Stack.Screen
-          name="ResetPassword"
-          options={{ headerShown: false }}
-        />
-
-        {/* Main app after login */}
-        <Stack.Screen
-          name="(tabs)"
-          options={{ headerShown: false }}
-        />
-
-        {/* Keep modal support */}
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: 'fade',
+          contentStyle: { backgroundColor: 'transparent' }
+        }}
+      >
+        {/* All screens will inherit headerShown: false from screenOptions */}
+        <Stack.Screen name="index" />
+        <Stack.Screen name="login" />
+        <Stack.Screen name="register" />
+        <Stack.Screen name="ResetPassword" />
+        <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="modal"
-          options={{ presentation: 'modal', title: 'Modal' }}
+          options={{ 
+            presentation: 'modal',
+            headerShown: true,
+            title: 'Modal' 
+          }}
         />
       </Stack>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   TextInput,
@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import axios from 'axios';
 import { Picker } from '@react-native-picker/picker';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 
 const API_BASE_URL = 'http://localhost:8080/api/v1';
 
@@ -31,6 +31,16 @@ export default function RegisterScreen() {
   const [step, setStep] = useState(1);
 
   const router = useRouter();
+  const navigation = useNavigation();
+
+  // Force hide header when component mounts
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+      title: '',
+      headerTitle: '',
+    });
+  }, [navigation]);
 
   // Refs for verification code inputs
   const inputRefs = React.useRef<(TextInput | null)[]>(Array(6).fill(null));
