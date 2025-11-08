@@ -1,59 +1,106 @@
-import React, { useState } from 'react';
-import { View, TextInput, Button, Text } from 'react-native';
-import axios from 'axios';
-import { Picker } from '@react-native-picker/picker';
-import { useRouter } from 'expo-router';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { useRoleSwitch } from '@/src/hooks/useRoleSwitch';
+import { dashboardStyles as styles } from '@/src/styles/screens/dashboard.styles';
 
-export default function RegisterScreen() {
-  const [banner_Id, setBannerId] = useState('');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone_number, setPhoneNumber] = useState('');
-  const [password, setPassword] = useState('');
-  const [role,setRole] = useState('RIDER');
-  const [message, setMessage] = useState('');
-  const router = useRouter();
+export default function DashboardScreen() {
+  const { user } = useAuth();
+  const { currentRole } = useRoleSwitch();
 
-
-  const handleRegister = async () => {
-    try {
-        const response = await axios.post('http://localhost:8080/api/v1/user/register', {
-        banner_id: banner_Id,
-        full_name: name,
-        school_email: email.toLowerCase(),
-        phone_number: phone_number,
-        password: password,
-        selected_role: role,
-      });
-      setMessage('Registration successful!');
-    } catch (error : any) {
-      setMessage('Error: Could not register.');
-      setMessage(error.response?.data?.message + "\n" || error.message);
-    }
-  };
-
-  
   return (
-    <View style={{flex: 1, backgroundColor : 'white', padding: 20 }}>
-      <TextInput placeholder="banner_Id" onChangeText={setBannerId} style={{ marginBottom: 10, borderWidth: 1, padding: 10 }} />
-      <TextInput placeholder="name" onChangeText={setName} style={{ marginBottom: 10, borderWidth: 1, padding: 10 }} />
-      <TextInput placeholder="email" onChangeText={setEmail} style={{ marginBottom: 10, borderWidth: 1, padding: 10 }} />
-      <TextInput placeholder="phone_number" onChangeText={setPhoneNumber} style={{ marginBottom: 10, borderWidth: 1, padding: 10 }} />
-      <TextInput placeholder="Password" secureTextEntry onChangeText={setPassword} style={{ marginBottom: 10, borderWidth: 1, padding: 10 }} />
-      <Text>Role:</Text>
-      <Picker selectedValue={role} onValueChange={(itemValue) => setRole(itemValue)} style={{ marginBottom: 20 }}>
-        <Picker.Item label="RIDER" value="RIDER" />
-        <Picker.Item label="DRIVER" value="DRIVER" />
-      </Picker>
-      <Button title="Register" onPress={handleRegister} />
-      {message ? <Text style={{ marginTop: 20 }}>{message}</Text> : null}
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.welcomeSection}>
+          <Text style={styles.greeting}>Good day! 👋</Text>
+          <Text style={styles.userName}>{user?.name}</Text>
+          <Text style={styles.userRole}>
+            {currentRole.toUpperCase()}
+          </Text>
+        </View>
+      </View>
 
+      <View style={styles.content}>
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        
+        <View style={styles.actionsGrid}>
+          {currentRole === 'DRIVER' ? (
+            <>
+              <TouchableOpacity style={[styles.actionCard, styles.primaryCard]}>
+                <Text style={styles.actionIcon}>🚗</Text>
+                <Text style={[styles.actionTitle, styles.primaryText]}>Create Ride</Text>
+                <Text style={[styles.actionDescription, styles.primaryTextSecondary]}>
+                  Offer a new ride
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.actionCard}>
+                <Text style={styles.actionIcon}>📋</Text>
+                <Text style={styles.actionTitle}>Active Rides</Text>
+                <Text style={styles.actionDescription}>
+                  Manage your rides
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <TouchableOpacity style={[styles.actionCard, styles.primaryCard]}>
+                <Text style={styles.actionIcon}>🔍</Text>
+                <Text style={[styles.actionTitle, styles.primaryText]}>Find Rides</Text>
+                <Text style={[styles.actionDescription, styles.primaryTextSecondary]}>
+                  Search available rides
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.actionCard}>
+                <Text style={styles.actionIcon}>📱</Text>
+                <Text style={styles.actionTitle}>My Bookings</Text>
+                <Text style={styles.actionDescription}>
+                  View booked rides
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+          
+          <TouchableOpacity style={styles.actionCard}>
+            <Text style={styles.actionIcon}>📊</Text>
+            <Text style={styles.actionTitle}>History</Text>
+            <Text style={styles.actionDescription}>
+              Past rides & activity
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.actionCard}>
+            <Text style={styles.actionIcon}>⚙️</Text>
+            <Text style={styles.actionTitle}>Settings</Text>
+            <Text style={styles.actionDescription}>
+              Account & preferences
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-      <Text
-       onPress={() => router.push('../ResetPassword')}>
-         Forgot Password? Reset Here!
-       </Text>
-    </View>
+        <View style={styles.statsSection}>
+          <Text style={styles.sectionTitle}>Your {currentRole === 'DRIVER' ? 'Driver' : 'Rider'} Stats</Text>
+          <View style={styles.statsGrid}>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statLabel}>
+                {currentRole === 'DRIVER' ? 'Rides Offered' : 'Rides Taken'}
+              </Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statLabel}>
+                {currentRole === 'DRIVER' ? 'Passengers' : 'This Month'}
+              </Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>5.0</Text>
+              <Text style={styles.statLabel}>Rating</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 

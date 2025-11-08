@@ -1,31 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
-  TextInput,
   Text,
   StyleSheet,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  ActivityIndicator,
   SafeAreaView,
 } from 'react-native';
-import axios from 'axios';
 import { useRouter, useNavigation } from 'expo-router';
-
-const API_BASE_URL = 'http://localhost:8080/api/v1';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { useLogin } from '@/src/hooks/useAuthForm';
+import { Input } from '@/src/components/ui/Input';
+import { Button } from '@/src/components/ui/Button';
 
 export default function LoginScreen() {
-  const [bannerId, setBannerId] = useState('');
-  const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
-  const [loggingIn, setLoggingIn] = useState(false);
-
   const router = useRouter();
   const navigation = useNavigation();
+  const { isLoading, error, isAuthenticated } = useAuth();
+  const { formData, updateField, handleLogin } = useLogin();
 
-  // Force hide header when component mounts
   useEffect(() => {
     navigation.setOptions({
       headerShown: false,
@@ -34,43 +29,16 @@ export default function LoginScreen() {
     });
   }, [navigation]);
 
-  const validate = () => {
-    if (!bannerId || !password) {
-      return 'Please enter Banner ID and password.';
-    }
-    return null;
-  };
-
-  const handleLogin = async () => {
-    setMessage('');
-
-    const problem = validate();
-    if (problem) {
-      setMessage(problem);
-      return;
-    }
-
-    try {
-      setLoggingIn(true);
-
-      const response = await axios.post(`${API_BASE_URL}/auth/login`, {
-        banner_id: bannerId,
-        password: password,
-      });
-
-      console.log('Login success:', response.data);
+  useEffect(() => {
+    if (isAuthenticated) {
       router.replace('/(tabs)');
-    } catch (error: any) {
-      console.log('Login error:', error?.response?.data || error.message);
+    }
+  }, [isAuthenticated, router]);
 
-      const backendMsg =
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        error.message;
-
-      setMessage(backendMsg || 'Login failed. Please try again.');
-    } finally {
-      setLoggingIn(false);
+  const onLoginPress = async () => {
+    const success = await handleLogin();
+    if (success) {
+      router.replace('/(tabs)');
     }
   };
 
@@ -93,29 +61,24 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.form}>
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Banner ID</Text>
-                <TextInput
-                  placeholder="e.g., B00123456"
-                  value={bannerId}
-                  onChangeText={setBannerId}
-                  style={styles.input}
-                  autoCapitalize="none"
-                  editable={!loggingIn}
-                />
-              </View>
+              <Input
+                label="Banner ID"
+                placeholder="e.g., B00123456"
+                value={formData.banner_id}
+                onChangeText={(text) => updateField('banner_id', text)}
+                autoCapitalize="none"
+                editable={!isLoading}
+              />
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Password</Text>
-                <TextInput
-                  placeholder="Enter your password"
-                  value={password}
-                  onChangeText={setPassword}
-                  style={styles.input}
-                  secureTextEntry
-                  editable={!loggingIn}
-                />
-              </View>
+              <Input
+                label="Password"
+                placeholder="Enter your password"
+                value={formData.password}
+                onChangeText={(text) => updateField('password', text)}
+                secureTextEntry
+                showPasswordToggle
+                editable={!isLoading}
+              />
 
               <TouchableOpacity 
                 onPress={() => router.push('/ResetPassword')}
@@ -124,19 +87,14 @@ export default function LoginScreen() {
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
 
-              {!!message && <Text style={styles.errorText}>{message}</Text>}
+              {error && <Text style={styles.errorText}>{error}</Text>}
 
-              <TouchableOpacity
-                style={[styles.button, loggingIn && styles.buttonDisabled]}
-                onPress={handleLogin}
-                disabled={loggingIn}
-              >
-                {loggingIn ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <Text style={styles.buttonText}>Login</Text>
-                )}
-              </TouchableOpacity>
+              <Button
+                title="Login"
+                onPress={onLoginPress}
+                loading={isLoading}
+                disabled={isLoading}
+              />
 
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
@@ -147,7 +105,7 @@ export default function LoginScreen() {
               <View style={styles.signupContainer}>
                 <Text style={styles.signupText}>Don't have an account? </Text>
                 <TouchableOpacity onPress={() => router.push('/register')}>
-                  <Text style={styles.signupLink}>Sign Up</Text>
+                  <Text style={styles.signupLink}>Create Account</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -197,25 +155,7 @@ const styles = StyleSheet.create({
   form: {
     marginBottom: 32,
   },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    fontSize: 16,
-    color: '#1A1A1A',
-  },
+
   forgotPassword: {
     alignSelf: 'flex-end',
     marginBottom: 24,
@@ -225,26 +165,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  button: {
-    backgroundColor: '#0A84FF',
-    borderRadius: 12,
-    padding: 18,
-    alignItems: 'center',
-    shadowColor: '#0A84FF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  buttonDisabled: {
-    backgroundColor: '#A0C4FF',
-    shadowOpacity: 0.1,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+
   errorText: {
     color: '#FF3B30',
     fontSize: 14,
