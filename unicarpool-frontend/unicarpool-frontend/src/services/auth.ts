@@ -73,6 +73,10 @@ export class AuthService {
     );
   }
 
+ static async changePassword(data: { banner_id: string; password: string }) {
+    return apiService.post(API_ENDPOINTS.AUTH.RESET_PASSWORD, data);
+  }
+
   static async addUserRole(role: AddRoleRequest): Promise<AddRoleResponse> {
     return apiService.post<AddRoleResponse>(API_ENDPOINTS.USER.ADD_TYPE, role);
   }

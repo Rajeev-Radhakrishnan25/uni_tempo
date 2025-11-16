@@ -14,16 +14,16 @@ import { useRouter } from 'expo-router';
 import { authService } from '@/src/services/auth';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
+import { useAuth } from '@/src/contexts/AuthContext';
 import { resetPasswordStyles as styles } from '@/src/styles/screens/resetPassword.styles';
 
 export default function ResetPasswordScreen() {
   const [bannerId, setBannerId] = useState('');
   const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
+  const {setResetBannerId , setResetVerificationCode } = useAuth();
 
   const router = useRouter();
 
@@ -34,16 +34,6 @@ export default function ResetPasswordScreen() {
     
     if (!bannerId.trim()) {
       setMessage('Please enter your Banner ID');
-      return;
-    }
-
-    if (password.length < 8) {
-      setMessage('Password must be at least 8 characters long');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setMessage('Passwords do not match');
       return;
     }
 
@@ -109,21 +99,21 @@ export default function ResetPasswordScreen() {
 
     try {
       setLoading(true);
-
-      await authService.recoverPassword({
-        banner_id: bannerId,
-        verification_code: code,
-        password: password,
-      });
-
+    
       Alert.alert(
         'Success!',
-        'Your password has been reset successfully. Please login with your new password.',
+        'You have been successfully verified!',
         [
           {
-            text: 'Go to Login',
-            onPress: () => router.replace('/login'),
-          },
+
+
+            text: 'Continue',
+            onPress: () => {
+            setResetBannerId(bannerId);
+            setResetVerificationCode(code);
+            router.push('/recoverPassword');
+      },
+    },
         ]
       );
     } catch (error: any) {
@@ -194,26 +184,6 @@ export default function ResetPasswordScreen() {
                   editable={!loading}
                 />
 
-                <Input
-                  label="New Password"
-                  placeholder="At least 8 characters"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  showPasswordToggle
-                  editable={!loading}
-                />
-
-                <Input
-                  label="Confirm New Password"
-                  placeholder="Re-enter your password"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry
-                  showPasswordToggle
-                  editable={!loading}
-                />
-
                 {message ? <Text style={styles.errorText}>{message}</Text> : null}
 
                 <Button
@@ -256,7 +226,7 @@ export default function ResetPasswordScreen() {
                 {message ? <Text style={styles.errorText}>{message}</Text> : null}
 
                 <Button
-                  title="Reset Password"
+                  title="Verify "
                   onPress={handleResetPassword}
                   loading={loading}
                   disabled={loading}

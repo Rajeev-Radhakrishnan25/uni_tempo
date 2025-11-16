@@ -8,6 +8,9 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { currentRole } = useRoleSwitch();
 
+  const isRider = currentRole === 'RIDER';
+  const isDriver = currentRole === 'DRIVER';
+
   return (
     <Tabs
       key={currentRole}
@@ -22,6 +25,7 @@ export default function TabLayout() {
         },
       }}
     >
+      {/* Dashboard - Always visible */}
       <Tabs.Screen
         name="index"
         options={{
@@ -29,21 +33,60 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🏠</Text>,
         }}
       />
+      
+      {/* Rider-only tab */}
       <Tabs.Screen
-        name="explore"
+        name="passenger"
         options={{
-          title: currentRole === 'RIDER' ? 'Find Rides' : 'Create Ride',
-          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>
-            {currentRole === 'RIDER' ? '🔍' : '🚗'}
-          </Text>,
+          href: isRider ? undefined : null,
+          title: 'Find Rides',
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🔍</Text>,
         }}
       />
 
+      {/* Driver-only tabs */}
+      <Tabs.Screen
+        name="driver"
+        options={{
+          href: isDriver ? undefined : null,
+          title: 'My Rides',
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🚗</Text>,
+        }}
+      />
+
+      <Tabs.Screen
+        name="rideRequests"
+        options={{
+          href: isDriver ? undefined : null,
+          title: 'Requests',
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📬</Text>,
+        }}
+      />
+      
+      {/* Create Ride - Hidden from nav, accessible via button */}
+      <Tabs.Screen
+        name="createRide"
+        options={{
+          href: null,
+          title: 'Create Ride',
+        }}
+      />
+
+      {/* Profile - Always visible, last position */}
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
           tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>👤</Text>,
+        }}
+      />
+
+      {/* Hidden tabs - not shown in navbar */}
+      <Tabs.Screen
+        name="explore"
+        options={{
+          href: null,
+          title: 'Explore',
         }}
       />
 
@@ -53,6 +96,21 @@ export default function TabLayout() {
           href: null,
           title: 'Edit Profile',
         }}
+      />
+
+      <Tabs.Screen
+        name="changePassword"
+        options={{
+          href: null,
+          title: 'Change Password',
+        }}
+      />
+
+      <Tabs.Screen
+        name="bookings"
+         options={{
+        href: null
+         }}
       />
     </Tabs>
   );

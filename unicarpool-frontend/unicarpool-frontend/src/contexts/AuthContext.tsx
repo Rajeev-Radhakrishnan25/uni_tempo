@@ -9,6 +9,8 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   currentRole: UserRole | null;
+  resetBannerId: string | null;
+  resetVerificationCode: string | null;
 }
 
 type AuthAction =
@@ -17,7 +19,10 @@ type AuthAction =
   | { type: 'SET_ERROR'; payload: string }
   | { type: 'CLEAR_ERROR' }
   | { type: 'LOGOUT' }
+  | { type: 'SET_RESET_BANNER_ID'; payload: string | null }
+  | { type: 'SET_RESET_VERIFICATION_CODE'; payload: string | null}
   | { type: 'SET_CURRENT_ROLE'; payload: UserRole };
+
 
 interface AuthContextType extends AuthState {
   login: (user: User, token?: string) => Promise<void>;
@@ -26,6 +31,8 @@ interface AuthContextType extends AuthState {
   setError: (error: string) => void;
   clearError: () => void;
   setCurrentRole: (role: UserRole) => Promise<void>;
+  setResetBannerId: (bannerId: string | null) => void;
+  setResetVerificationCode: (code: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -61,6 +68,18 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         ...state,
         currentRole: action.payload,
       };
+    case 'SET_RESET_BANNER_ID':
+      return {
+        ...state,
+        resetBannerId: action.payload,
+      };
+
+
+    case 'SET_RESET_VERIFICATION_CODE':
+      return{
+        ...state,
+        resetVerificationCode : action.payload,
+      }
     default:
       return state;
   }
@@ -72,6 +91,8 @@ const initialState: AuthState = {
   isLoading: false,
   error: null,
   currentRole: null,
+  resetBannerId: null,
+  resetVerificationCode: null,
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -110,6 +131,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await storageService.setItem('current_role', role);
   };
 
+  const setResetBannerId = (bannerId: string | null) => {
+    dispatch({ type: 'SET_RESET_BANNER_ID', payload: bannerId });
+  };
+
+  const setResetVerificationCode = (code: string | null) => {
+  dispatch({ type: 'SET_RESET_VERIFICATION_CODE', payload: code });
+};
+
+
   useEffect(() => {
     checkStoredAuth();
   }, []);
@@ -147,6 +177,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError,
     clearError,
     setCurrentRole,
+    setResetBannerId,
+    setResetVerificationCode,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

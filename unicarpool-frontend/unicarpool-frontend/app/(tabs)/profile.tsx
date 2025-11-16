@@ -89,6 +89,17 @@ export default function ProfileScreen() {
             <Text style={styles.settingText}>Edit Profile</Text>
             <Text style={styles.settingArrow}>→</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={() => router.push('/(tabs)/changePassword')}            
+          >
+            <Text style={styles.settingIcon}>🔒</Text>
+            <Text style={styles.settingText}>Change Password</Text>
+            <Text style={styles.settingArrow}>→</Text>
+
+            </TouchableOpacity>
+
           
           <TouchableOpacity style={styles.settingItem}>
             <Text style={styles.settingIcon}>❓</Text>

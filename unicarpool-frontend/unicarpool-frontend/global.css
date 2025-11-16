@@ -1,0 +1,13 @@
+/* global.css — fix datepicker overlap */
+.react-datepicker-popper {
+    z-index: 9999 !important;
+  }
+  
+  .datepicker-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 16px;
+  }
+  

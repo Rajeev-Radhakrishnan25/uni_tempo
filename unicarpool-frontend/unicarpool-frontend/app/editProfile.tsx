@@ -47,14 +47,14 @@ export default function EditProfileScreen() {
       });
 
       const updatedUser = {
-        id: response.id ?? 0,
-        bannerId: response.banner_id ?? '',
+        id: response.id,
+        bannerId: response.banner_id,
         name: response.name,
         email: response.email,
         roles: response.roles,
-        phone_number: response.phone_number ?? '',
-        banner_id: response.banner_id ?? '',
-        email_verified: response.email_verified ?? false,
+        phone_number: response.phone_number,
+        banner_id: response.banner_id,
+        email_verified: response.email_verified,
       };
 
       await login(updatedUser);
@@ -123,8 +123,6 @@ export default function EditProfileScreen() {
               loading={loading}
               disabled={loading}
             />
-
-            <View style={{ marginTop: 16 }} />
 
             <Button
               title="Cancel"

@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { useRoleSwitch } from '@/src/hooks/useRoleSwitch';
 import { dashboardStyles as styles } from '@/src/styles/screens/dashboard.styles';
@@ -6,6 +7,7 @@ import { dashboardStyles as styles } from '@/src/styles/screens/dashboard.styles
 export default function DashboardScreen() {
   const { user } = useAuth();
   const { currentRole } = useRoleSwitch();
+  const router = useRouter();
 
   return (
     <ScrollView style={styles.container}>
@@ -25,7 +27,10 @@ export default function DashboardScreen() {
         <View style={styles.actionsGrid}>
           {currentRole === 'DRIVER' ? (
             <>
-              <TouchableOpacity style={[styles.actionCard, styles.primaryCard]}>
+              <TouchableOpacity 
+                style={[styles.actionCard, styles.primaryCard]}
+                onPress={() => router.push('/(tabs)/createRide')}
+              >
                 <Text style={styles.actionIcon}>🚗</Text>
                 <Text style={[styles.actionTitle, styles.primaryText]}>Create Ride</Text>
                 <Text style={[styles.actionDescription, styles.primaryTextSecondary]}>
@@ -33,9 +38,12 @@ export default function DashboardScreen() {
                 </Text>
               </TouchableOpacity>
               
-              <TouchableOpacity style={styles.actionCard}>
+              <TouchableOpacity 
+                style={styles.actionCard}
+                onPress={() => router.push('/(tabs)/driver')}
+              >
                 <Text style={styles.actionIcon}>📋</Text>
-                <Text style={styles.actionTitle}>Active Rides</Text>
+                <Text style={styles.actionTitle}>My Rides</Text>
                 <Text style={styles.actionDescription}>
                   Manage your rides
                 </Text>
@@ -43,7 +51,10 @@ export default function DashboardScreen() {
             </>
           ) : (
             <>
-              <TouchableOpacity style={[styles.actionCard, styles.primaryCard]}>
+              <TouchableOpacity 
+                style={[styles.actionCard, styles.primaryCard]}
+                onPress={() => router.push('/(tabs)/passenger')}
+              >
                 <Text style={styles.actionIcon}>🔍</Text>
                 <Text style={[styles.actionTitle, styles.primaryText]}>Find Rides</Text>
                 <Text style={[styles.actionDescription, styles.primaryTextSecondary]}>
@@ -51,7 +62,10 @@ export default function DashboardScreen() {
                 </Text>
               </TouchableOpacity>
               
-              <TouchableOpacity style={styles.actionCard}>
+              <TouchableOpacity 
+                style={styles.actionCard}
+                onPress={() => router.push('/(tabs)/bookings')}
+              >
                 <Text style={styles.actionIcon}>📱</Text>
                 <Text style={styles.actionTitle}>My Bookings</Text>
                 <Text style={styles.actionDescription}>

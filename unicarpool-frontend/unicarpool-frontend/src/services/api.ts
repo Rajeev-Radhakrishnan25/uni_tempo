@@ -68,10 +68,7 @@ class ApiService {
   }
 
   public post<T>(url: string, data?: any): Promise<T> {
-    console.log(data);
-    console.log(url);
     return this.client.post(url, data).then(response => {
-        console.log(response)
         return response.data;
     });
   }

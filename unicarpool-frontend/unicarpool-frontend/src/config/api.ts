@@ -1,6 +1,7 @@
 export const API_CONFIG = {
-  BASE_URL:'http://csci5308-vm4.research.cs.dal.ca:8080/api/v1',
-  TIMEOUT: 10000,
+  BASE_URL: 'http://192.168.0.122:8080/api/v1',
+  // BASE_URL:'http://csci5308-vm4.research.cs.dal.ca:8080/api/v1',
+  TIMEOUT: 120000,
 };
 
 export const API_ENDPOINTS = {
@@ -17,5 +18,16 @@ export const API_ENDPOINTS = {
     PROFILE: '/user/profile',
     UPDATE_PROFILE: '/user/update',
     ADD_TYPE: '/user/add-type',
+  },
+  RIDE: {
+    CREATE: '/driver/create-ride',
+    GET_DRIVER_RIDES: '/driver/ride',
+    CANCEL: '/driver/rides',
+    GET_ALL_RIDES: '/rider/ride/active',
+    BOOK_RIDE: '/rider/book-ride',
+    GET_RIDE_REQUESTS: '/driver/ride-request',
+    GET_MY_REQUESTS: '/rider/my-request',
+    ACCEPT_REQUEST: '/driver',
+    REJECT_REQUEST: '/driver',
   },
 } as const;
