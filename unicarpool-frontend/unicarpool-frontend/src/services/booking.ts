@@ -1,49 +1,48 @@
 import { apiService } from './api';
-import { Booking, BookingsResponse } from '@/src/types/booking';
-
-// Note: Update these endpoints when backend is ready
-const BOOKING_ENDPOINTS = {
-  MY_BOOKINGS: '/bookings/my-bookings',
-  BOOK_RIDE: '/bookings/book',
-  CANCEL_BOOKING: '/bookings/cancel',
-} as const;
+import { API_ENDPOINTS } from '@/src/config/api';
+import { Booking, BookingsResponse, CurrentBooking } from '@/src/types/booking';
 
 export class BookingService {
-  static async getMyBookings(): Promise<BookingsResponse> {
-    // TODO: Replace with actual API call when backend is ready
-    // return apiService.get<BookingsResponse>(BOOKING_ENDPOINTS.MY_BOOKINGS);
-    
-    // Mock data for now - following existing pattern
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          current: [],
-          completed: [],
-        });
-      }, 500);
-    });
+  static async getCurrentBookings(): Promise<CurrentBooking[]> {
+    return apiService.get<CurrentBooking[]>(API_ENDPOINTS.RIDE.CURRENT_BOOKINGS);
   }
 
-  static async bookRide(rideId: number, seatsBooked: number): Promise<{ message: string }> {
-    // TODO: Replace with actual API call when backend is ready
-    // return apiService.post<{ message: string }>(BOOKING_ENDPOINTS.BOOK_RIDE, {
-    //   ride_id: rideId,
-    //   seats_booked: seatsBooked,
-    // });
-    
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ message: 'Booking successful' });
-      }, 500);
-    });
+  static async getMyBookings(): Promise<BookingsResponse> {
+    try {
+      const currentBookings = await this.getCurrentBookings();
+      
+      // Transform API response to match UI expectations
+      const transformedBookings: Booking[] = currentBookings.map((booking) => ({
+        id: booking.ride_request_id,
+        rideId: booking.ride_id,
+        riderId: booking.rider_id,
+        driverName: booking.driver_name,
+        driverPhone: booking.driver_phone_number,
+        departureLocation: booking.departure_location,
+        destination: booking.destination,
+        departureDateTime: booking.departure_date_time,
+        status: booking.status,
+        meetingPoint: booking.meeting_point,
+        message: booking.message,
+      }));
+
+      // Separate current and completed bookings
+      const current = transformedBookings.filter(
+        (b) => b.status === 'PENDING' || b.status === 'ACCEPTED'
+      );
+      const completed = transformedBookings.filter(
+        (b) => b.status === 'DECLINED' || b.status === 'COMPLETED' || b.status === 'CANCELLED'
+      );
+
+      return { current, completed };
+    } catch (error) {
+      console.error('Failed to fetch bookings:', error);
+      throw error;
+    }
   }
 
   static async cancelBooking(bookingId: number): Promise<{ message: string }> {
-    // TODO: Replace with actual API call when backend is ready
-    // return apiService.post<{ message: string }>(
-    //   `${BOOKING_ENDPOINTS.CANCEL_BOOKING}/${bookingId}`
-    // );
-    
+    // TODO: Implement cancel booking API when available
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve({ message: 'Booking cancelled successfully' });

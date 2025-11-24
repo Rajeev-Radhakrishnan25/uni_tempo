@@ -11,12 +11,13 @@ interface BookingCardProps {
 export function BookingCard({ booking, onCancel, showCancelButton = false }: BookingCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'CONFIRMED':
+      case 'ACCEPTED':
         return '#34C759';
       case 'PENDING':
         return '#FF9500';
       case 'COMPLETED':
         return '#0A84FF';
+      case 'DECLINED':
       case 'CANCELLED':
         return '#FF3B30';
       default:
@@ -85,16 +86,18 @@ export function BookingCard({ booking, onCancel, showCancelButton = false }: Boo
             <Text style={styles.detailValue}>{booking.driverName}</Text>
           </View>
 
+          {booking.driverPhone && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailIcon}>📞</Text>
+              <Text style={styles.detailLabel}>Phone:</Text>
+              <Text style={styles.detailValue}>{booking.driverPhone}</Text>
+            </View>
+          )}
+
           <View style={styles.detailRow}>
             <Text style={styles.detailIcon}>🕐</Text>
             <Text style={styles.detailLabel}>Time:</Text>
             <Text style={styles.detailValue}>{formatDateTime(booking.departureDateTime)}</Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Text style={styles.detailIcon}>👥</Text>
-            <Text style={styles.detailLabel}>Seats:</Text>
-            <Text style={styles.detailValue}>{booking.seatsBooked}</Text>
           </View>
 
           {booking.meetingPoint && (
@@ -104,9 +107,16 @@ export function BookingCard({ booking, onCancel, showCancelButton = false }: Boo
               <Text style={styles.detailValue}>{booking.meetingPoint}</Text>
             </View>
           )}
+
+          {booking.message && (
+            <View style={styles.messageContainer}>
+              <Text style={styles.messageLabel}>Your Message:</Text>
+              <Text style={styles.messageText}>{booking.message}</Text>
+            </View>
+          )}
         </View>
 
-        {showCancelButton && booking.status === 'CONFIRMED' && onCancel && (
+        {showCancelButton && booking.status === 'ACCEPTED' && onCancel && (
           <TouchableOpacity
             style={styles.cancelButton}
             onPress={() => onCancel(booking.id)}
@@ -229,5 +239,22 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
+  },
+  messageContainer: {
+    backgroundColor: '#E3F2FD',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+  },
+  messageLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1976D2',
+    marginBottom: 4,
+  },
+  messageText: {
+    fontSize: 14,
+    color: '#1976D2',
+    lineHeight: 20,
   },
 });

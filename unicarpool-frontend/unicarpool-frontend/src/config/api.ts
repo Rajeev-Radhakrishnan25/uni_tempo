@@ -1,6 +1,6 @@
 export const API_CONFIG = {
-  // BASE_URL: 'http://192.168.0.122:8080/api/v1',
-  BASE_URL:'http://csci5308-vm4.research.cs.dal.ca:8080/api/v1',
+  BASE_URL: 'http://10.0.2.2:8080/api/v1',
+  // BASE_URL:'http://csci5308-vm4.research.cs.dal.ca:8080/api/v1',
   TIMEOUT: 120000,
 };
 
@@ -29,5 +29,6 @@ export const API_ENDPOINTS = {
     GET_MY_REQUESTS: '/rider/my-request',
     ACCEPT_REQUEST: '/driver',
     REJECT_REQUEST: '/driver',
+    CURRENT_BOOKINGS: '/rider/current-bookings',
   },
 } as const;
