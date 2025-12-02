@@ -22,6 +22,7 @@ export default function DriverRidesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [processingRideId, setProcessingRideId] = useState<number | null>(null);
 
   // Redirect if not a driver
   useEffect(() => {
@@ -38,6 +39,8 @@ export default function DriverRidesScreen() {
     try {
       setError(null);
       const data = await rideService.getDriverRides();
+      console.log('Fetched driver rides:', data);
+      console.log('First ride status:', data[0]?.status);
       setRides(data);
     } catch (err: any) {
       setError(err.message || 'Failed to load rides');
@@ -72,6 +75,56 @@ export default function DriverRidesScreen() {
     );
   };
 
+  const handleStartRide = (ride: Ride) => {
+    Alert.alert(
+      'Start Ride',
+      `Start the ride from ${ride.departure_location} to ${ride.destination}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Start',
+          onPress: async () => {
+            try {
+              setProcessingRideId(ride.id);
+              const response = await rideService.startRide(ride.id);
+              Alert.alert('Success! 🚀', response.message || 'Ride started successfully');
+              fetchRides();
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Failed to start ride');
+            } finally {
+              setProcessingRideId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleCompleteRide = (ride: Ride) => {
+    Alert.alert(
+      'Complete Ride',
+      `Mark this ride as completed?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Complete',
+          onPress: async () => {
+            try {
+              setProcessingRideId(ride.id);
+              const response = await rideService.completeRide(ride.id);
+              Alert.alert('Success! ✅', response.message || 'Ride completed successfully');
+              fetchRides();
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Failed to complete ride');
+            } finally {
+              setProcessingRideId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleCancelRide = (ride: Ride) => {
     Alert.alert(
       'Cancel Ride',
@@ -83,11 +136,14 @@ export default function DriverRidesScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await rideService.cancelRide(ride.id.toString());
-              Alert.alert('Success', 'Ride cancelled successfully');
+              setProcessingRideId(ride.id);
+              const response = await rideService.cancelRideByDriver(ride.id);
+              Alert.alert('Success', response.message || 'Ride cancelled successfully');
               fetchRides();
             } catch (err: any) {
               Alert.alert('Error', err.message || 'Failed to cancel ride');
+            } finally {
+              setProcessingRideId(null);
             }
           },
         },
@@ -111,11 +167,36 @@ export default function DriverRidesScreen() {
 
   const renderRideCard = ({ item }: { item: Ride }) => {
     const { date, time } = formatDateTime(item.departure_date_time);
+    const isProcessing = processingRideId === item.id;
+    const rideStatus = item.status || 'Waiting';
+
+    const getStatusStyle = () => {
+      switch (rideStatus) {
+        case 'Waiting':
+        case 'ACTIVE':
+          return { badge: styles.statusWaiting, text: styles.statusTextWaiting };
+        case 'Started':
+        case 'STARTED':
+          return { badge: styles.statusStarted, text: styles.statusTextStarted };
+        case 'Completed':
+        case 'COMPLETED':
+          return { badge: styles.statusCompleted, text: styles.statusTextCompleted };
+        case 'CANCELLED':
+          return { badge: styles.statusCancelled, text: styles.statusTextCancelled };
+        default:
+          return { badge: styles.statusWaiting, text: styles.statusTextWaiting };
+      }
+    };
+
+    const statusStyle = getStatusStyle();
 
     return (
       <View style={styles.rideCard}>
         <View style={styles.rideHeader}>
           <Text style={styles.rideId}>Ride #{item.id}</Text>
+          <View style={[styles.statusBadge, statusStyle.badge]}>
+            <Text style={[styles.statusText, statusStyle.text]}>{rideStatus}</Text>
+          </View>
         </View>
 
         <View style={styles.rideRoute}>
@@ -156,24 +237,65 @@ export default function DriverRidesScreen() {
           </View>
         )}
 
-        <View style={styles.rideActions}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.viewButton]}
-            onPress={() => handleViewRide(item)}
-          >
-            <Text style={[styles.actionButtonText, styles.viewButtonText]}>
-              View Details
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.cancelButton]}
-            onPress={() => handleCancelRide(item)}
-          >
-            <Text style={[styles.actionButtonText, styles.cancelButtonText]}>
-              Cancel Ride
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {/* Show Complete button only for Started rides */}
+        {(rideStatus === 'Started' || rideStatus === 'STARTED') && (
+          <View style={styles.rideActions}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.completeButton]}
+              onPress={() => handleCompleteRide(item)}
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <Text style={[styles.actionButtonText, styles.completeButtonText]}>
+                  ✅ Complete Ride
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Show read-only status for Completed/Cancelled rides */}
+        {(rideStatus === 'Completed' || rideStatus === 'COMPLETED' || rideStatus === 'CANCELLED') && (
+          <View style={styles.rideActions}>
+            <View style={[styles.actionButton, { backgroundColor: '#F0F0F0', borderWidth: 0 }]}>
+              <Text style={[styles.actionButtonText, { color: '#666' }]}>
+                {rideStatus === 'Completed' || rideStatus === 'COMPLETED' ? '✓ Ride Completed' : '✗ Ride Cancelled'}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Show Start and Cancel buttons for Waiting/Active rides */}
+        {rideStatus !== 'Started' && rideStatus !== 'STARTED' && 
+         rideStatus !== 'Completed' && rideStatus !== 'COMPLETED' && 
+         rideStatus !== 'CANCELLED' && (
+          <View style={styles.rideActions}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.startButton]}
+              onPress={() => handleStartRide(item)}
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <Text style={[styles.actionButtonText, styles.startButtonText]}>
+                  🚀 Start Ride
+                </Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.cancelButton]}
+              onPress={() => handleCancelRide(item)}
+              disabled={isProcessing}
+            >
+              <Text style={[styles.actionButtonText, styles.cancelButtonText]}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     );
   };

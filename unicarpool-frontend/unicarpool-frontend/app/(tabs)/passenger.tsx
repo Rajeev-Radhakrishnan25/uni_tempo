@@ -418,22 +418,33 @@ export default function PassengerScreen() {
         <View style={styles.listContent}>
           <Text style={styles.sectionHeader}>Available Rides</Text>
 
-          {rides.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyIcon}>🚗</Text>
-              <Text style={styles.emptyTitle}>No Rides Available</Text>
-              <Text style={styles.emptyText}>
-                There are no rides available at the moment. Check back later!
-              </Text>
-            </View>
-          ) : (
-            <FlatList
-              data={rides}
-              renderItem={renderRideCard}
-              keyExtractor={(item) => item.id.toString()}
-              scrollEnabled={false}
-            />
-          )}
+          {(() => {
+            // Filter out rides that have already been requested (excluding DECLINED requests)
+            const requestedRideIds = requests
+              .filter(req => req.status !== 'DECLINED')
+              .map(req => req.rideId);
+            
+            const availableRides = rides.filter(ride => !requestedRideIds.includes(ride.id));
+
+            return availableRides.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyIcon}>🚗</Text>
+                <Text style={styles.emptyTitle}>No Rides Available</Text>
+                <Text style={styles.emptyText}>
+                  {rides.length > 0 
+                    ? 'You have already requested all available rides. Check your requests below.'
+                    : 'There are no rides available at the moment. Check back later!'}
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={availableRides}
+                renderItem={renderRideCard}
+                keyExtractor={(item) => item.id.toString()}
+                scrollEnabled={false}
+              />
+            );
+          })()}
 
           {requests.length > 0 && (
             <View style={styles.requestsSection}>

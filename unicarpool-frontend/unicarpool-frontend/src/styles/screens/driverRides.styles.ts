@@ -76,7 +76,7 @@ export const driverRidesStyles = StyleSheet.create({
   rideHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 12,
   },
   rideId: {
@@ -87,6 +87,45 @@ export const driverRidesStyles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  statusWaiting: {
+    backgroundColor: '#E3F2FD',
+  },
+  statusActive: {
+    backgroundColor: '#E3F2FD',
+  },
+  statusStarted: {
+    backgroundColor: '#FFF3E0',
+  },
+  statusCompleted: {
+    backgroundColor: '#E8F5E9',
+  },
+  statusCancelled: {
+    backgroundColor: '#FFEBEE',
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  statusTextWaiting: {
+    color: '#1976D2',
+  },
+  statusTextActive: {
+    color: '#1976D2',
+  },
+  statusTextStarted: {
+    color: '#E65100',
+  },
+  statusTextCompleted: {
+    color: '#2E7D32',
+  },
+  statusTextCancelled: {
+    color: '#C62828',
   },
   rideRoute: {
     marginBottom: 12,
@@ -166,6 +205,12 @@ export const driverRidesStyles = StyleSheet.create({
   viewButton: {
     backgroundColor: '#0A84FF',
   },
+  startButton: {
+    backgroundColor: '#FF9500',
+  },
+  completeButton: {
+    backgroundColor: '#34C759',
+  },
   cancelButton: {
     backgroundColor: 'white',
     borderWidth: 1,
@@ -176,6 +221,12 @@ export const driverRidesStyles = StyleSheet.create({
     fontWeight: '600',
   },
   viewButtonText: {
+    color: 'white',
+  },
+  startButtonText: {
+    color: 'white',
+  },
+  completeButtonText: {
     color: 'white',
   },
   cancelButtonText: {

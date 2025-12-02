@@ -5,11 +5,17 @@ import { useRoleSwitch } from '@/src/hooks/useRoleSwitch';
 import { Button } from '@/src/components/ui/Button';
 import { RoleSwitcher } from '@/src/components/RoleSwitcher';
 import { profileStyles as styles } from '@/src/styles/screens/profile.styles';
+import { useState } from 'react';
+import { bookingService } from '@/src/services/booking';
+
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, currentRole} = useAuth();
   const { getMissingRoles, addRole } = useRoleSwitch();
+  const [isAvailable, setIsAvailable] = useState(false);
+  const showDriverToggle = currentRole === 'DRIVER';
+
 
   const handleLogout = async () => {
     Alert.alert(
@@ -23,6 +29,19 @@ export default function ProfileScreen() {
   };
 
   const missingRoles = getMissingRoles();
+
+  const toggleAvailability = async () => {
+    try {
+      const res = await bookingService.toggleDriverAvailability(isAvailable);
+
+      setIsAvailable((prev) => !prev);
+
+      alert(res.message || `Driver is now ${!isAvailable ? 'AVAILABLE' : 'UNAVAILABLE'}`);
+    } catch (error) {
+      console.error('Failed to toggle availability:', error);
+      alert('Failed to update driver availability');
+    }
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -97,15 +116,26 @@ export default function ProfileScreen() {
             <Text style={styles.settingIcon}>🔒</Text>
             <Text style={styles.settingText}>Change Password</Text>
             <Text style={styles.settingArrow}>→</Text>
+          </TouchableOpacity>
 
-            </TouchableOpacity>
-
-          
+          {showDriverToggle && (
+          <TouchableOpacity
+            onPress={toggleAvailability}
+            style={styles.settingItem}
+          >
+            <Text style={styles.settingIcon}>🚦</Text>
+            <Text style={styles.settingText}>
+              {isAvailable ? "Go Offline" : "Go Online"}
+            </Text>
+            <Text style={styles.settingArrow}>→</Text>
+          </TouchableOpacity>
+          )}
           <TouchableOpacity style={styles.settingItem}>
             <Text style={styles.settingIcon}>❓</Text>
             <Text style={styles.settingText}>Help & Support</Text>
             <Text style={styles.settingArrow}>→</Text>
           </TouchableOpacity>
+
         </View>
 
         <View style={styles.section}>

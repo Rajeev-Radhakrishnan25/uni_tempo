@@ -1,112 +1,63 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Modal,
   View,
   Text,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
   Alert,
+  ActivityIndicator,
+  TextInput
 } from 'react-native';
-import { useAuth } from '@/src/contexts/AuthContext';
-import RatingModal from '@/src/components/RatingModal';
-import ratingService from '@/src/services/ratingService';
-
-interface Booking {
-  id: string;
-  rideId: string;
-  driverName: string;
-  vehicleInfo: string;
-  from: string;
-  to: string;
-  date: string;
-  time: string;
-  seats: number;
-  price: number;
-  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
-  driverId: string;
-  hasRated?: boolean;
-}
+import { bookingService } from '@/src/services/booking';
+import { Booking } from '@/src/types/booking';
 
 export default function BookingsScreen() {
-  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'current' | 'completed'>('current');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  
-  // Rating Modal State
-  const [ratingModalVisible, setRatingModalVisible] = useState(false);
-  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   useEffect(() => {
     fetchBookings();
   }, [activeTab]);
 
+  const [showReviewPrompt, setShowReviewPrompt] = useState(false);
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState<string>('');
+  const [currentBooking, setCurrentBooking] = useState<Booking | null>(null);
+  
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      // TODO: Replace with your actual API call
-      // const response = await bookingService.getMyBookings(activeTab);
-      // setBookings(response.data);
+      const response = await bookingService.getMyBookings();
       
-      // Mock data for demonstration
-      const mockBookings: Booking[] = [
-        {
-          id: '1',
-          rideId: 'ride-001',
-          driverName: 'John Doe',
-          vehicleInfo: 'Toyota Camry • ABC-1234',
-          from: 'Halifax Downtown',
-          to: 'Dalhousie University',
-          date: '2024-11-20',
-          time: '09:00 AM',
-          seats: 2,
-          price: 15,
-          status: 'COMPLETED',
-          driverId: 'driver-001',
-          hasRated: false,
-        },
-        {
-          id: '2',
-          rideId: 'ride-002',
-          driverName: 'Jane Smith',
-          vehicleInfo: 'Honda Civic • XYZ-5678',
-          from: 'Spring Garden Rd',
-          to: 'Bedford',
-          date: '2024-11-18',
-          time: '02:00 PM',
-          seats: 1,
-          price: 12,
-          status: 'COMPLETED',
-          driverId: 'driver-002',
-          hasRated: true,
-        },
-        {
-          id: '3',
-          rideId: 'ride-003',
-          driverName: 'Mike Johnson',
-          vehicleInfo: 'Mazda 3 • DEF-9012',
-          from: 'Dartmouth',
-          to: 'Halifax Airport',
-          date: '2024-11-22',
-          time: '06:30 AM',
-          seats: 3,
-          price: 25,
-          status: 'CONFIRMED',
-          driverId: 'driver-003',
-          hasRated: false,
-        },
-      ];
+      console.log('Bookings response:', response);
+      console.log('Current bookings:', response.current);
+      console.log('Completed bookings:', response.completed);
+      console.log('Active tab:', activeTab);
       
-      setBookings(
-        activeTab === 'completed' 
-          ? mockBookings.filter(b => b.status === 'COMPLETED')
-          : mockBookings.filter(b => b.status !== 'COMPLETED')
-      );
-    } catch (error) {
+      const selectedBookings = activeTab === 'completed' 
+        ? response.completed
+        : response.current;
+
+      setBookings(selectedBookings);
+
+      const latestToReview = selectedBookings.filter(booking => 
+        booking.status === 'COMPLETED' && !booking.reviewed)
+        .sort((a, b) => b.id - a.id)[0];
+
+      if (latestToReview) {
+        setTimeout(() => {
+          promptReview(latestToReview);
+        }, 300);
+      }
+
+    } catch (error: any) {
       console.error('Error fetching bookings:', error);
-      Alert.alert('Error', 'Failed to load bookings');
+      Alert.alert('Error', error.message || 'Failed to load bookings');
     } finally {
       setLoading(false);
     }
@@ -118,110 +69,210 @@ export default function BookingsScreen() {
     setRefreshing(false);
   };
 
-  const handleRateRide = (booking: Booking) => {
-    setSelectedBooking(booking);
-    setRatingModalVisible(true);
+  const hasStartedRide = bookings.some(
+    (booking) => booking.status.toUpperCase() === 'STARTED'
+  );
+
+  const formatDateTime = (dateTime: string) => {
+    const date = new Date(dateTime);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+  const promptReview = (booking: Booking) => {
+    setCurrentBooking(booking);
+    setReviewComment('');
+    setSelectedRating(0);
+    setShowReviewPrompt(true);
   };
 
-  const handleSubmitRating = async (rating: number, comment: string) => {
-    if (!selectedBooking) return;
+  const renderBookingCard = ({ item: booking }: { item: Booking }) => {
+    const getStatusStyle = () => {
+      const status = booking.status.toUpperCase();
+      switch (status) {
+        case 'WAITING':
+        case 'ACTIVE':
+        case 'PENDING':
+          return { badge: styles.statusWaiting, text: styles.statusTextWaiting };
+        case 'STARTED':
+          return { badge: styles.statusStarted, text: styles.statusTextStarted };
+        case 'ACCEPTED':
+          return { badge: styles.statusAccepted, text: styles.statusTextAccepted };
+        case 'DECLINED':
+          return { badge: styles.statusDeclined, text: styles.statusTextDeclined };
+        case 'COMPLETED':
+          return { badge: styles.statusCompleted, text: styles.statusTextCompleted };
+        case 'CANCELLED':
+          return { badge: styles.statusCancelled, text: styles.statusTextCancelled };
+        default:
+          return { badge: styles.statusWaiting, text: styles.statusTextWaiting };
+      }
+    };
 
-    try {
-      await ratingService.rateDriver({
-        rideId: selectedBooking.rideId,
-        driverId: selectedBooking.driverId,
-        rating,
-        comment,
-      });
-
-      Alert.alert('Success! 🎉', 'Thank you for your feedback!');
-      
-      // Update the booking to mark as rated
-      setBookings(prevBookings =>
-        prevBookings.map(b =>
-          b.id === selectedBooking.id ? { ...b, hasRated: true } : b
-        )
-      );
-      
-      setRatingModalVisible(false);
-      setSelectedBooking(null);
-    } catch (error) {
-      console.error('Error submitting rating:', error);
-      Alert.alert('Error', 'Failed to submit rating. Please try again.');
-    }
-  };
-
-  const renderBookingCard = (booking: Booking) => {
-    const isCompleted = booking.status === 'COMPLETED';
-    const canRate = isCompleted && !booking.hasRated;
+    const statusStyle = getStatusStyle();
 
     return (
-      <View key={booking.id} style={styles.bookingCard}>
-        {/* Driver Info */}
-        <View style={styles.driverSection}>
-          <View style={styles.driverAvatar}>
-            <Text style={styles.driverAvatarText}>
-              {booking.driverName.split(' ').map(n => n[0]).join('')}
-            </Text>
-          </View>
+      <View style={styles.bookingCard}>
+        <View style={styles.bookingHeader}>
           <View style={styles.driverInfo}>
-            <Text style={styles.driverName}>{booking.driverName}</Text>
-            <Text style={styles.vehicleInfo}>{booking.vehicleInfo}</Text>
+            <Text style={styles.driverName}>🚗 {booking.driverName}</Text>
+            <Text style={styles.bookingId}>Booking #{booking.id}</Text>
           </View>
-          <View style={[styles.statusBadge, styles[`status${booking.status}`]]}>
-            <Text style={styles.statusText}>{booking.status}</Text>
+          <View style={[styles.statusBadge, statusStyle.badge]}>
+            <Text style={[styles.statusText, statusStyle.text]}>{booking.status}</Text>
           </View>
         </View>
 
-        {/* Trip Details */}
-        <View style={styles.tripDetails}>
-          <View style={styles.locationRow}>
-            <Text style={styles.locationIcon}>📍</Text>
-            <View style={styles.locationInfo}>
-              <Text style={styles.locationLabel}>From</Text>
-              <Text style={styles.locationText}>{booking.from}</Text>
+        <View style={styles.routeContainer}>
+          <View style={styles.routeRow}>
+            <Text style={styles.routeIcon}>📍</Text>
+            <Text style={styles.routeText}>{booking.departureLocation}</Text>
+          </View>
+          <View style={styles.routeDivider} />
+          <View style={styles.routeRow}>
+            <Text style={styles.routeIcon}>🎯</Text>
+            <Text style={styles.routeText}>{booking.destination}</Text>
+          </View>
+        </View>
+
+        <View style={styles.detailsContainer}>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailIcon}>📞</Text>
+            <Text style={styles.detailText}>{booking.driverPhone}</Text>
+          </View>
+          {booking.meetingPoint && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailIcon}>📍</Text>
+              <Text style={styles.detailText}>{booking.meetingPoint}</Text>
             </View>
-          </View>
-          <View style={styles.locationRow}>
-            <Text style={styles.locationIcon}>🎯</Text>
-            <View style={styles.locationInfo}>
-              <Text style={styles.locationLabel}>To</Text>
-              <Text style={styles.locationText}>{booking.to}</Text>
-            </View>
+          )}
+          <View style={styles.detailRow}>
+            <Text style={styles.detailIcon}>📅</Text>
+            <Text style={styles.detailText}>{formatDateTime(booking.departureDateTime)}</Text>
           </View>
         </View>
 
-        {/* Time and Price */}
-        <View style={styles.bottomSection}>
-          <View style={styles.timeSection}>
-            <Text style={styles.dateText}>{booking.date}</Text>
-            <Text style={styles.timeText}>{booking.time} • {booking.seats} seat(s)</Text>
-          </View>
-          <Text style={styles.priceText}>${booking.price}</Text>
-        </View>
-
-        {/* Rate Button for Completed Rides */}
-        {canRate && (
-          <TouchableOpacity
-            style={styles.rateButton}
-            onPress={() => handleRateRide(booking)}
-          >
-            <Text style={styles.rateButtonText}>⭐ Rate this Ride</Text>
-          </TouchableOpacity>
-        )}
-
-        {booking.hasRated && (
-          <View style={styles.ratedBadge}>
-            <Text style={styles.ratedText}>✓ Rated</Text>
-          </View>
-        )}
+         {activeTab === 'completed' && (
+            booking.reviewed ? (
+              <Text style={{ color: '#2E7D32', fontWeight: '600', marginTop: 12 }}>
+                ✅ Reviewed
+              </Text>
+            ) : (
+              <TouchableOpacity
+                style={styles.reviewButton}
+                onPress={() => promptReview(booking)}
+              >
+                <Text style={styles.reviewButtonText}>Submit Review</Text>
+              </TouchableOpacity>
+            )
+          )}
       </View>
     );
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'ACCEPTED':
+        return '#2e7d32';
+      case 'PENDING':
+        return '#f57c00';
+      case 'COMPLETED':
+        return '#1976d2';
+      case 'DECLINED':
+      case 'CANCELLED':
+        return '#d32f2f';
+      default:
+        return '#666';
+    }
+  };
+
+  if (loading) {
+
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerIcon}>📋</Text>
+            <Text style={styles.title}>My Bookings</Text>
+            <Text style={styles.subtitle}>Track your ride bookings</Text>
+          </View>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" 
+          color="#0A84FF" />
+          <Text style={styles.loadingText}>Loading bookings...</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      {/* Tab Navigation */}
+  <View style={styles.container}>
+    {showReviewPrompt && currentBooking && (
+      <Modal transparent animationType="slide" visible={showReviewPrompt}>
+        <View style={styles.modaloverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>
+              Submit Review for {currentBooking.driverName}
+            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginVertical: 16 }}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <TouchableOpacity key={star} onPress={() => setSelectedRating(star)}>
+                  <Text style={{ fontSize: 32, color: star <= selectedRating ? '#FFD700' : '#ccc' }}>
+                    ★
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              style={styles.commentInput}
+              placeholder="Write your comments..."
+              multiline
+              value={reviewComment}
+              onChangeText={setReviewComment}
+            />
+            <TouchableOpacity
+              style={styles.submitButton}
+              onPress={async () => {
+                if (!currentBooking) return;
+                try {
+                  await bookingService.submitReview(
+                    currentBooking.rideId,
+                    selectedRating,
+                    reviewComment
+                  );
+                  setShowReviewPrompt(false);
+                  fetchBookings();
+                  Alert.alert('Thank you!', 'Your review has been submitted');
+                } catch (err: any) {
+                  Alert.alert('Error', err.message || 'Failed to submit review');
+                }
+              }}
+            >
+              <Text style={{ color: 'white', fontWeight: '600' }}>Submit Review</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.submitButton, { backgroundColor: '#ccc', marginTop: 12 }]}
+              onPress={() => setShowReviewPrompt(false)}
+            >
+              <Text style={{ color: '#333', fontWeight: '600' }}>Skip</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    )}
+    <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerIcon}>📋</Text>
+          <Text style={styles.title}>My Bookings</Text>
+          <Text style={styles.subtitle}>Track your ride bookings</Text>
+        </View>
+      </View>
+
       <View style={styles.tabContainer}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'current' && styles.activeTab]}
@@ -241,70 +292,149 @@ export default function BookingsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Bookings List */}
-      <ScrollView
-        style={styles.scrollView}
+      <FlatList
+        data={bookings}
+        renderItem={renderBookingCard}
+        keyExtractor={(item) => {
+          const id =
+            item.bookingId ??
+            item.rideRequestId ??
+            item.rideId ??
+            item.id;
+
+          return id ? id.toString() : Math.random().toString();
+        }}
+
+        contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={['#0A84FF']}
+            tintColor="#0A84FF"
+          />
         }
-      >
-        {bookings.length === 0 ? (
-          <View style={styles.emptyState}>
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>
               {activeTab === 'current' ? '🚗' : '✅'}
             </Text>
-            <Text style={styles.emptyStateTitle}>
+            <Text style={styles.emptyTitle}>
               {activeTab === 'current' 
                 ? 'No Current Bookings' 
                 : 'No Completed Rides'}
             </Text>
-            <Text style={styles.emptyStateText}>
+            <Text style={styles.emptyText}>
               {activeTab === 'current'
                 ? 'Book a ride to get started!'
                 : 'Your completed rides will appear here'}
             </Text>
           </View>
-        ) : (
-          bookings.map(renderBookingCard)
-        )}
-      </ScrollView>
-
-      {/* Rating Modal */}
-      {selectedBooking && (
-        <RatingModal
-          visible={ratingModalVisible}
-          onClose={() => {
-            setRatingModalVisible(false);
-            setSelectedBooking(null);
-          }}
-          onSubmit={handleSubmitRating}
-          driverName={selectedBooking.driverName}
-          vehicleInfo={selectedBooking.vehicleInfo}
-        />
-      )}
+        }
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  reviewButton: {
+  backgroundColor: '#0A84FF',
+  paddingVertical: 10,
+  paddingHorizontal: 16,
+  borderRadius: 12,
+  alignItems: 'center',
+  marginTop: 12,
+},
+
+modaloverlay: {
+  flex: 1,
+  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+modalContainer: {
+  backgroundColor: 'white',
+  borderRadius: 16,
+  padding: 20,
+  width: '85%',
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.25,
+  shadowRadius: 4,
+  elevation: 5,
+},
+
+modalTitle: {
+  fontSize: 20,
+  fontWeight: '600',
+  marginBottom: 16,
+  textAlign: 'center',
+},
+commentInput: {
+  borderColor: '#E0E0E0',
+  borderWidth: 1,
+  borderRadius: 12,
+  padding: 12,
+  textAlignVertical: 'top',
+  marginBottom: 16,
+  fontSize: 14,
+  color: '#1A1A1A',
+},
+submitButton: {
+  backgroundColor: '#0A84FF',
+  paddingVertical: 12,
+  borderRadius: 12,
+  alignItems: 'center',
+},
+
+reviewButtonText: {
+  color: 'white',
+  fontWeight: '600',
+  fontSize: 16,
+},
+
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F8F9FA',
+  },
+  header: {
+    backgroundColor: '#0A84FF',
+    paddingTop: 60,
+    paddingBottom: 30,
+    paddingHorizontal: 20,
+  },
+  headerContent: {
+    alignItems: 'center',
+  },
+  headerIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#E0E0E0',
   },
   tab: {
     flex: 1,
-    paddingVertical: 15,
+    paddingVertical: 16,
     alignItems: 'center',
   },
   activeTab: {
     borderBottomWidth: 3,
-    borderBottomColor: '#667eea',
+    borderBottomColor: '#0A84FF',
   },
   tabText: {
     fontSize: 16,
@@ -312,171 +442,184 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   activeTabText: {
-    color: '#667eea',
+    color: '#0A84FF',
     fontWeight: '600',
   },
-  scrollView: {
-    flex: 1,
-    padding: 15,
+  listContent: {
+    padding: 20,
   },
   bookingCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 15,
-    elevation: 2,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  driverSection: {
+  bookingHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  driverAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#667eea',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  driverAvatarText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
   },
   driverInfo: {
     flex: 1,
   },
   driverName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 3,
+    color: '#1A1A1A',
+    marginBottom: 4,
   },
-  vehicleInfo: {
-    fontSize: 13,
+  bookingId: {
+    fontSize: 12,
     color: '#666',
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
-  statusCOMPLETED: {
-    backgroundColor: '#e8f5e9',
+  statusWaiting: {
+    backgroundColor: '#E3F2FD',
   },
-  statusPENDING: {
-    backgroundColor: '#fff3e0',
+  statusStarted: {
+    backgroundColor: '#FFF3E0',
   },
-  statusCONFIRMED: {
-    backgroundColor: '#e3f2fd',
+  statusPending: {
+    backgroundColor: '#FFF3E0',
   },
-  statusCANCELLED: {
-    backgroundColor: '#ffebee',
+  statusAccepted: {
+    backgroundColor: '#E8F5E9',
+  },
+  statusDeclined: {
+    backgroundColor: '#FFEBEE',
+  },
+  statusCompleted: {
+    backgroundColor: '#E3F2FD',
+  },
+  statusCancelled: {
+    backgroundColor: '#FFEBEE',
   },
   statusText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#2e7d32',
-  },
-  tripDetails: {
-    marginBottom: 15,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  locationIcon: {
-    fontSize: 18,
-    marginRight: 10,
-    marginTop: 2,
-  },
-  locationInfo: {
-    flex: 1,
-  },
-  locationLabel: {
     fontSize: 12,
-    color: '#999',
-    marginBottom: 2,
+    fontWeight: '600',
   },
-  locationText: {
-    fontSize: 15,
-    color: '#1a1a1a',
-    fontWeight: '500',
+  statusTextWaiting: {
+    color: '#1976D2',
   },
-  bottomSection: {
+  statusTextStarted: {
+    color: '#E65100',
+  },
+  statusTextPending: {
+    color: '#E65100',
+  },
+  statusTextAccepted: {
+    color: '#2E7D32',
+  },
+  statusTextDeclined: {
+    color: '#C62828',
+  },
+  statusTextCompleted: {
+    color: '#1976D2',
+  },
+  statusTextCancelled: {
+    color: '#C62828',
+  },
+  routeContainer: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  routeRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  timeSection: {
+  routeIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  routeText: {
+    fontSize: 15,
+    color: '#1A1A1A',
+    fontWeight: '500',
     flex: 1,
   },
-  dateText: {
+  routeDivider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginVertical: 8,
+    marginLeft: 24,
+  },
+  detailsContainer: {
+    marginBottom: 12,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  detailIcon: {
+    fontSize: 14,
+    marginRight: 8,
+    width: 20,
+  },
+  detailText: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 2,
+    flex: 1,
   },
-  timeText: {
-    fontSize: 13,
-    color: '#999',
+  messageContainer: {
+    backgroundColor: '#E3F2FD',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 4,
   },
-  priceText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#667eea',
-  },
-  rateButton: {
-    backgroundColor: '#667eea',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 15,
-  },
-  rateButtonText: {
-    color: '#fff',
-    fontSize: 15,
+  messageLabel: {
+    fontSize: 12,
     fontWeight: '600',
+    color: '#1976D2',
+    marginBottom: 4,
   },
-  ratedBadge: {
-    backgroundColor: '#e8f5e9',
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 15,
-  },
-  ratedText: {
-    color: '#2e7d32',
+  messageText: {
     fontSize: 14,
-    fontWeight: '600',
+    color: '#1976D2',
+    lineHeight: 20,
   },
-  emptyState: {
+  emptyContainer: {
     alignItems: 'center',
+    padding: 40,
+    minHeight: 300,
     justifyContent: 'center',
-    paddingVertical: 80,
   },
   emptyIcon: {
     fontSize: 64,
     marginBottom: 16,
   },
-  emptyStateTitle: {
-    fontSize: 18,
+  emptyTitle: {
+    fontSize: 20,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: '#1A1A1A',
     marginBottom: 8,
   },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#999',
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
     textAlign: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
   },
 });

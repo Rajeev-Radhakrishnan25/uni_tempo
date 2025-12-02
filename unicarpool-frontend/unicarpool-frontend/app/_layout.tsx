@@ -4,12 +4,13 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/src/contexts/AuthContext';
 import { AuthGuard } from '@/src/components/AuthGuard';
-
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <AuthProvider>
       <AuthGuard>
         <Stack
@@ -28,5 +29,6 @@ export default function RootLayout() {
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       </AuthGuard>
     </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -30,5 +30,10 @@ export const API_ENDPOINTS = {
     ACCEPT_REQUEST: '/driver',
     REJECT_REQUEST: '/driver',
     CURRENT_BOOKINGS: '/rider/current-bookings',
+    COMPLETED_BOOKINGS: '/rider/completed-bookings',
+    UPDATE_RIDE_STATUS: '/driver/ride',
+    SUBMIT_REVIEW: '/rider/rating',
+    DRIVER_AVAILABILITY: '/driver/availability?available=',
+    CAB_BOOKING: '/rider/cab/book',
   },
 } as const;

@@ -47,8 +47,8 @@ export default function EditProfileScreen() {
       });
 
       const updatedUser = {
-        id: response.id,
-        bannerId: response.banner_id,
+        id: response.id!,
+        bannerId: response.banner_id!,
         name: response.name,
         email: response.email,
         roles: response.roles,

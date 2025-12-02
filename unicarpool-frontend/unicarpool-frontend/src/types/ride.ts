@@ -1,7 +1,7 @@
 export interface CreateRideRequest {
   departure_location: string;
   destination: string;
-  departure_date_time: string; // ISO 8601 format
+  departure_date_time: string; 
   available_seats: number;
   meeting_point: string;
   ride_conditions?: string;
@@ -29,8 +29,9 @@ export interface Ride {
   available_seats: number;
   meeting_point: string;
   ride_conditions?: string;
-  status?: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  status?: 'WAITING' | 'STARTED' | 'COMPLETED' | 'CANCELLED';
   created_at?: string;
+  reviewed?: boolean;
 }
 
 export interface PassengerRequest {
@@ -63,6 +64,7 @@ export interface RideRequestResponse {
   destination: string;
   meeting_point: string;
   departure_date_time: string;
+  reviewed?: boolean;
 }
 
 export interface DriverRideRequest {
@@ -79,6 +81,7 @@ export interface DriverRideRequest {
   destination: string;
   meeting_point: string;
   departure_date_time: string;
+  reviewed?: boolean;
 }
 
 export interface AcceptRejectResponse {

@@ -55,6 +55,28 @@ export class RideService {
       {}
     );
   }
+
+  static async updateRideStatus(
+    rideId: number,
+    status: 'Started' | 'Completed' | 'Cancelled'
+  ): Promise<{ message: string }> {
+    return apiService.get<{ message: string }>(
+      `${API_ENDPOINTS.RIDE.UPDATE_RIDE_STATUS}/${rideId}/status?status=${status}`,
+      {}
+    );
+  }
+
+  static async startRide(rideId: number): Promise<{ message: string }> {
+    return this.updateRideStatus(rideId, 'Started');
+  }
+
+  static async completeRide(rideId: number): Promise<{ message: string }> {
+    return this.updateRideStatus(rideId, 'Completed');
+  }
+
+  static async cancelRideByDriver(rideId: number): Promise<{ message: string }> {
+    return this.updateRideStatus(rideId, 'Cancelled');
+  }
 }
 
 export const rideService = RideService;

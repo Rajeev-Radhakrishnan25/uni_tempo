@@ -71,7 +71,13 @@ export default function TabLayout() {
           title: 'Create Ride',
         }}
       />
-
+      <Tabs.Screen
+       name="cabbooking"
+        options={{
+          href: null,
+          title: 'Cab Booking',
+        }}
+      />
       {/* Profile - Always visible, last position */}
       <Tabs.Screen
         name="profile"
